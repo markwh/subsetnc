@@ -1,7 +1,7 @@
 Package: subsetnc
 Type: Package
 Title: Tidily Subset NetCDF Data
-Version: 0.0.1.9000
+Version: 0.0.1.9001
 Authors@R: person("Mark", "Hagemann", email = "mark.hagemann@gmail.com", 
     role = c("aut", "cre"))
 Description: A little package to add missing subset-writing functionality 
@@ -9,3 +9,9 @@ Description: A little package to add missing subset-writing functionality
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
+Suggests: 
+    testthat
+Imports: 
+    ncdf4,
+    rlang
+RoxygenNote: 6.1.1

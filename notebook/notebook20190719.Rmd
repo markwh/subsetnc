@@ -1,0 +1,323 @@
+---
+title: "notebook20190719"
+author: "Mark Hagemann"
+date: "7/19/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Herein I outline the steps and try out ideas for `nc_subset()` function.
+
+I already did some subsetting in swot-error project (test-data.R). Here are some of the steps I had to take:
+
+- make a new `ncdim4` object 
+  - copy from `nc$dim[[dimname]]`
+  - change `len` element
+  - change `vals` element
+- make a new `ncvar4` object
+  - copy from `nc$var[[name]]`
+  - check dimensions--treat 2-D variables differently, stop if more than 2 dims
+    - TODO: CHANGE THIS TO ARBITRARY SUBSET ALONG GIVEN DIMENSION
+  - change `size` element
+  - change `dim` element to new dim (as descibed above)
+  - change `chunksizes` to NA (not clear why I needed to do this, but it broke otherwise)
+- make a new netcdf using `nc_create()` with list of `ncvar4` as created above and others copied directly from original netcdf object
+- Put unchanged variables' values in to the new netcdf
+  - Probably need to use `ncvar_get`--will be slower than ideal.
+  - Then `ncvar_put()`
+- Subset changed variables' values, put into new netcdf
+  - For now use `ncdf4::ncvar_get()` and apply logical filters
+  - In future maybe use tidync to get values more efficiently
+  - `ncvar_put()`
+- `nc_close()` to complete
+
+- I may need to make this more complex. Subsetting of variables will have to happen twice: once to get indices for subset, again to apply subset using these indices. 
+  - First time precedes dimension subsetting
+  - Second follows dimension subsetting.
+
+
+
+```{r}
+testncfile <- "~/Documents/swot-error/output/sac/42/pixel_cloud.nc"
+nc <- nc_open(testncfile)
+
+library(rlang)
+
+ncss_indlist(testnc, pixel_cloud/range_index < 20)
+
+```
+
+Hmm, I'll try doing this interactively, since I'm struggling with tidyeval. 
+
+```{r}
+library(lobstr)
+
+
+myexpr <- expr(`pixel_cloud/range_index` < (`pixel_cloud/range_index`[1] + 100))
+lhs <- myexpr[[2]]
+lhs
+ast(!!myexpr)
+ast(!!lhs)
+
+# lhs[[1]] <- function(x, y) paste(as_string(ensym(x)), as_string(ensym(y)), sep = "/")
+# lhs_str <- eval(lhs)
+lhs_str <- as_string(lhs)
+lhs_str
+
+rhs <- myexpr[[3]]
+ast(!!rhs)
+
+df <- data.frame(lhsvar = ncvar_get(nc, lhs_str))
+
+class(lhs)
+length(lhs)
+class(lhs[[2]])
+as_string(lhs[[2]])
+
+# fix myexpr to have less problematic names. 
+myexpr[[2]] <- expr(lhsvar)
+# myquo <- new_quosure(myexpr, env = )
+ast(!!myexpr)
+
+which(eval_tidy(myexpr, df))
+
+
+```
+
+Getting somewhere!
+
+Looks like it's easier to use `capture.output()` to turn lhs into a string (regardless of whether or not it's a call). 
+
+- Scratch that. Better to use backquotes when there are groups. 
+
+
+```{r}
+ncss_indlist(nc, `pixel_cloud/range_index` < 800)
+ncss_indlist(nc, `pixel_cloud/range_index` == `pixel_cloud/range_index`[1] + 20,
+             `pixel_cloud/range_index` < 2800)
+
+ncss_indlist(nc, `pixel_cloud/range_index` == `pixel_cloud/range_index`[1] + 20,
+             `pixel_cloud/range_index` < 2800,
+             `pixel_cloud/latitude` < mean(`pixel_cloud/latitude`, na.rm = TRUE))
+
+
+ncss_indlist(nc, `pixel_cloud/range_index` == `pixel_cloud/range_index`[1] + 20,
+             `pixel_cloud/range_index` < 2800,
+             `pixel_cloud/latitude` < mean(`pixel_cloud/latitude`, na.rm = TRUE),
+             `tvp/latitude` < (max(`tvp/latitude`, na.rm = TRUE) - 0.84))
+
+```
+
+Recursive function for finding names in a call.
+
+```{r}
+getNames <- function(expr) {
+  if (is_symbol(expr)) {
+    return(as_string(expr))
+  } else if (is_call(expr)) {
+    return(lapply(expr[-1], getNames))
+  }
+}
+
+unlist(getNames(rhs))
+
+```
+
+Cool, getting subset indices seems to work. Next, use those indices to:
+
+- get a list of subsetted `ncvar4` objects
+- get a list of subsetted `ncdim4` objects
+
+
+```{r}
+#' Create a list of ncdimr4 objects from a subset list
+ncss_dimlist <- function(nc, indlist) {
+  out <- nc$dim
+  
+  for (i in 1:length(indlist)) {
+    namei <- names(indlist)[i]
+    
+    out[[namei]] <- ssdim(out[[namei]], indlist[[i]])
+  }
+  out
+}
+
+ssdim <- function(ncdim, keepinds) {
+  ncdim$len <- length(keepinds)
+  ncdim$vals <- ncdim$vals[keepinds]
+  ncdim
+}
+
+#' Create a list of ncvar4 objects from a subset list
+ncss_varlist <- function(nc, dimlist) {
+  varlist <- nc$var
+  outlist <- varlist
+  for (i in 1:length(out)) {
+    vari <- varlist[[i]]
+    vari$size <- dimsize(vari, dimlist)
+    vari$dim <- dimlist[[vari$name]]
+    vari$varsize <- vari$size # unclear why nc object contains redundant info
+    
+    outlist[[vari$name]] <- vari
+  }
+  
+  outlist
+}
+
+dimsize <- function(var, dimlist) {
+  dimnames <- vapply(var$dim, function(x) x$name, character(1))
+  out <- vapply(dimlist[dimnames], function(x) x$len, numeric(1))
+  unname(out)
+}
+
+```
+
+Need to change: 
+
+- foo$size
+- foo$dim
+- foo$varsize
+
+
+```{r}
+indlist <- ncss_indlist(nc, 
+                `pixel_cloud/range_index` == `pixel_cloud/range_index`[1] + 20,
+                `pixel_cloud/range_index` < 2800)
+
+dimlist <- ncss_dimlist(nc, indlist)
+
+varlist <- ncss_varlist(nc, dimlist)
+```
+
+Good. Next, make a funciton to write? I think I need an intermediate function to get values. Although that would put an unnecessary amount of data into memory. Can I avoid that by a file.copy -> nc_open -> nc_redef -> nc_enddef chain?
+
+```{r}
+nc_close(nc)
+
+testncfile
+file.copy(testncfile, "./testnc.nc")
+
+nc <- nc_open("./testnc.nc", write = TRUE)
+nc_redef(nc)
+
+nc_enddef(nc)
+
+nc_close(nc)
+
+```
+
+No, it appears not. That's fine! Just loop through old variables and put those in. 
+
+```{r}
+ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE, 
+                        signedbyte = TRUE, collapse_degen = TRUE, 
+                        raw_datavals = FALSE) {
+  
+  stopifnot(is.character(varid))
+  
+  ndims <- length(nc$dim)
+  
+  vari <- nc$var[[varid]]
+  dimsi <- vari$dim
+  dimnamesi <- vapply(dimsi, function(x) x$name, character(1))
+  
+  out <-  ncvar_get(nc, varid, start = NA, 
+                      count = NA, 
+                      verbose = verbose, signedbyte = signedbyte,
+                      collapse_degen = collapse_degen, 
+                      raw_datavals = raw_datavals)
+  
+  # Do subsetting in order
+  ssdimnos <- match(names(indlist), dimnamesi)
+  for (i in seq_along(ssdimnos)) {
+    dimno <- ssdimnos[i]
+    out <- index_array(out, dimno, indlist[[i]])
+  }
+  
+  out
+}
+
+foo <- ncvar_getss(nc, "pixel_cloud/interferogram", indlist = indlist)
+```
+
+Need to deal with multidimensional variables. This will be easiest if I don't try to use `start` and `count` arguments. Premature optimization...
+
+```{r}
+# THIS IS NOW INCORPORATED INTO ncvar_getss()
+ssfun <- function(ncval_array, indlist, ncvar) {
+  vardimnames <- vapply(ncvar$dim, function(x) x$name, character(1))
+  
+  out <- ncval_array
+  # Do subsetting in order
+  ssdimnos <- match(names(indlist), vardimnames)
+  for (i in seq_along(ssdimnos)) {
+    dimno <- ssdimnos[i]
+    out <- index_array(out, dimno, indlist[[i]])
+  }
+  out
+}
+
+ssarray <- function(x, indlist) {
+  stopifnot(length(dim(x)) == length(indlist))
+  outcall <- quo(x[])
+}
+
+
+foocall <- expr(x[])
+
+foocall[[3]] <- 1:3
+foocall <- parse_expr("abc <- 123 + 456")
+foocall
+ast(!!foocall)
+eval_tidy(foocall)
+
+```
+
+Here's a solution from Hadley https://stackoverflow.com/a/14502298
+
+```{r}
+index_array <- function(x, dim, value, drop = FALSE) { 
+  # Create list representing arguments supplied to [
+  # bquote() creates an object corresponding to a missing argument
+  indices <- rep(list(bquote()), length(dim(x)))
+  indices[[dim]] <- value
+  
+  # Generate the call to [
+  call <- as.call(c(
+    list(as.name("["), quote(x)),
+    indices,
+    list(drop = drop)))
+  # Print it, just to make it easier to see what's going on
+  # print(call)
+
+  # Finally, evaluate it
+  eval(call)
+}
+
+index_array(foo, 1, 1:2)
+```
+
+Last step! Use `ncvar_getss()` to write a subsetted netcdf. First, one that uses as inputs the various objects created by other functions. Then, possibly, a pretty wrapper. 
+
+```{r}
+ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE) {
+  newnc <- nc_create(filename, vars = varlist)
+  if (!keep_open) on.exit(nc_close(newnc))
+  for (var in nc$var) {
+    varnamei <- var$name
+    valsi <- ncvar_getss(nc, var$name, indlist = indlist)
+    ncvar_put(newnc, varlist[[varnamei]], vals = valsi)
+  }
+  # Close and reopen to take out of write mode.
+  nc_close(newnc) 
+  newnc <- nc_open(filename) 
+  invisible(newnc)
+}
+
+
+
+```
+
