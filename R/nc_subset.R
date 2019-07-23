@@ -26,8 +26,6 @@ index_array <- function(x, dim, value, drop = FALSE) {
     list(as.name("["), quote(x)),
     indices,
     list(drop = drop)))
-  # Print it, just to make it easier to see what's going on
-  # print(call)
 
   # Finally, evaluate it
   eval(call)
@@ -92,6 +90,11 @@ ncss_dimlist <- function(nc, indlist) {
     namei <- names(indlist)[i]
 
     out[[namei]] <- ssdim(out[[namei]], indlist[[i]])
+    # print("units: ")
+    # print(out[[namei]]$units)
+    if (out[[namei]]$units == "") { # Requires dim values to be 1:length(vals)
+      out[[namei]]$vals <- seq_along(out[[namei]]$vals)
+    }
   }
   out
 }
@@ -103,13 +106,30 @@ ssdim <- function(ncdim, keepinds) {
   ncdim
 }
 
+
+#' Helper function to workaround ncdf4's prec limitations
+reassign_bytes <- function(varlist) {
+  varprec <- vapply(varlist, function(x) x$prec, character(1))
+  usinds <- which(varprec == "unsigned byte")
+  for (usind in usinds) {
+    varlist[[usind]]$prec <- "byte"
+    if (is.numeric(varlist[[usind]]$missval))
+      varlist[[usind]]$missval <- min(varlist[[usind]]$missval,
+                                      127)
+  }
+  varlist
+}
+
+
 #' Create a list of ncvar4 objects from a subset list
 #'
 #' @param nc ncdf4 object, as returned by \code{ncdf4::nc_open()}
 #' @param dimlist As returne by \code{ncss_dimlist()}
+#' @param reassign_bytes Make "unsigned byte" vars into "byte" vars?
+#'   Currently required to work with ncdf4.
 #'
 #' @export
-ncss_varlist <- function(nc, dimlist) {
+ncss_varlist <- function(nc, dimlist, reassign_bytes = TRUE) {
   varlist <- nc$var
   outlist <- varlist
   for (i in 1:length(outlist)) {
@@ -122,6 +142,10 @@ ncss_varlist <- function(nc, dimlist) {
     vari$varsize <- vari$size # unclear why nc object contains redundant info
 
     outlist[[vari$name]] <- vari
+  }
+
+  if (reassign_bytes) {
+    outlist <- reassign_bytes(outlist)
   }
 
   outlist
@@ -137,6 +161,7 @@ dimsize <- function(var, dimlist) {
   out <- vapply(dimlist[dimnames], function(x) x$len, numeric(1))
   unname(out)
 }
+
 
 #' Get a subset of a single netcdf variable
 #'
@@ -164,11 +189,11 @@ ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
 
   # Do subsetting in order
   ssdimnos <- match(names(indlist), dimnamesi)
-  if (is.na(ssdimnos)) return(out) # no matches
-
   for (i in seq_along(ssdimnos)) {
     dimno <- ssdimnos[i]
-    out <- index_array(out, dimno, indlist[[i]])
+    if (is.na(dimno)) next
+    tryout <- try(out <- index_array(out, dimno, indlist[[i]]))
+    if (inherits(tryout, "try-error")) browser()
   }
 
   out

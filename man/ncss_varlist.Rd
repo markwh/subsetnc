@@ -4,12 +4,15 @@
 \alias{ncss_varlist}
 \title{Create a list of ncvar4 objects from a subset list}
 \usage{
-ncss_varlist(nc, dimlist)
+ncss_varlist(nc, dimlist, reassign_bytes = TRUE)
 }
 \arguments{
 \item{nc}{ncdf4 object, as returned by \code{ncdf4::nc_open()}}
 
 \item{dimlist}{As returne by \code{ncss_dimlist()}}
+
+\item{reassign_bytes}{Make "unsigned byte" vars into "byte" vars?
+Currently required to work with ncdf4.}
 }
 \description{
 Create a list of ncvar4 objects from a subset list
