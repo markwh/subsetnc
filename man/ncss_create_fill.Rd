@@ -4,7 +4,8 @@
 \alias{ncss_create_fill}
 \title{Create and fill a new netcdf as a subset of an existing netcdf}
 \usage{
-ncss_create_fill(nc, filename, varlist, indlist, keep_open = TRUE)
+ncss_create_fill(nc, filename, varlist, indlist, keep_open = TRUE,
+  optimize = TRUE)
 }
 \arguments{
 \item{nc}{a ncdf4 object, as returned by \code{ncdf4::nc_open()}}

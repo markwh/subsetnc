@@ -5,7 +5,7 @@
 \title{Get a subset of a single netcdf variable}
 \usage{
 ncvar_getss(nc, varid, indlist = NULL, verbose = FALSE,
-  signedbyte = TRUE, collapse_degen = TRUE, raw_datavals = FALSE)
+  signedbyte = TRUE, raw_datavals = FALSE, optimize = TRUE)
 }
 \arguments{
 \item{nc}{An object of class \code{ncdf4} (as returned by either 
@@ -25,7 +25,7 @@ ncvar_getss(nc, varid, indlist = NULL, verbose = FALSE,
  values by using \code{nc_open(filename, readunlim=FALSE)}, then read the
  dimension values in later with this function.}
 
-\item{indlist}{As returne by \code{ncss_indlist()}}
+\item{indlist}{As returned by \code{ncss_indlist()}}
 
 \item{verbose}{If TRUE, then progress information is printed.}
 
@@ -33,13 +33,14 @@ ncvar_getss(nc, varid, indlist = NULL, verbose = FALSE,
  as signed.  This is in accord with the netCDF standard.  If FALSE, then
  on-disk byte variables are interpreted as unsigned.}
 
-\item{collapse_degen}{If TRUE (the default), then degenerate (length==1) dimensions
- in the returned array are removed.}
-
 \item{raw_datavals}{If TRUE, then the actual raw data values from the
  file are returned with no conversion to NA (if equal to the missing value/fill value) or
  scale/offset applied. Default is FALSE.}
+
+\item{optimize}{optimize call to \code{ncdf4::ncvar_get}}
 }
 \description{
-Get a subset of a single netcdf variable
+Note: \code{collapse_degen} (from \code{ncdf4::ncvar_get}
+ is always FALSE here, in order to
+ allow subsetting of resulting arrays.
 }

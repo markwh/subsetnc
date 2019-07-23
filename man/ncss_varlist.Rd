@@ -4,14 +4,14 @@
 \alias{ncss_varlist}
 \title{Create a list of ncvar4 objects from a subset list}
 \usage{
-ncss_varlist(nc, dimlist, reassign_bytes = TRUE)
+ncss_varlist(nc, dimlist, reassign_prec = TRUE)
 }
 \arguments{
 \item{nc}{ncdf4 object, as returned by \code{ncdf4::nc_open()}}
 
 \item{dimlist}{As returne by \code{ncss_dimlist()}}
 
-\item{reassign_bytes}{Make "unsigned byte" vars into "byte" vars?
+\item{reassign_prec}{Force data type into ones \code{ncdf4} can handle?
 Currently required to work with ncdf4.}
 }
 \description{

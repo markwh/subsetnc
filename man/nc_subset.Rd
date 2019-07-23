@@ -4,7 +4,8 @@
 \alias{nc_subset}
 \title{Subset a netcdf}
 \usage{
-nc_subset(nc, ..., filename = tempfile(), keep_open = TRUE)
+nc_subset(nc, ..., filename = tempfile(), keep_open = TRUE,
+  optimize = TRUE)
 }
 \arguments{
 \item{nc}{a ncdf4 object, as returned by \code{ncdf4::nc_open()}}

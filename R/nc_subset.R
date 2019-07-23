@@ -11,7 +11,12 @@
 getdim <- function(nc, dimname) {
   dimnames <- vapply(nc$dim, function(x) x$name, character(1))
   dimind <- match(dimname, dimnames, nomatch = NA)
-  if (is.na(dimind)) stop(sprintf("dim %s not found", dimname))
+  tryisna <- try(is.na(dimind))
+  isna <- is.na(dimind)
+  msg <- sprintf("dim %s not found", dimname)
+  if (!length(isna)) browser()
+  if (!length(msg)) browser()
+  if (isna) stop(msg)
   out <- nc$dim[[dimind]]
   out
 }
@@ -76,8 +81,9 @@ ncss_indlist <- function(nc, ...) {
     if (length(dimlensi) && (max(dimlensi) > 1))
       stop("All subsetting variables must be 1-dimensional")
     alldimnamesi <- unique(c(vardimnamesi, dimnamesi))
-    if (length(alldimnamesi) > 1)
-      stop("All subsetting variables must have same dimension.")
+    if (length(alldimnamesi) != 1)
+      stop("All subsetting variables must have same dimension.",
+           ssexpri)
 
 
     # build data mask
@@ -90,6 +96,8 @@ ncss_indlist <- function(nc, ...) {
 
     outlist[[alldimnamesi]] <- if (is.null(outlist[[alldimnamesi]])) indsi else {
       intersect(indsi, outlist[[alldimnamesi]])
+
+    stopifnot(inherits(outlist[[alldimnamesi]], "integer"))
     }
 
   }
@@ -129,14 +137,25 @@ ssdim <- function(ncdim, keepinds) {
 
 
 #' Helper function to workaround ncdf4's prec limitations
-reassign_bytes <- function(varlist) {
+reassign_prec <- function(varlist) {
   varprec <- vapply(varlist, function(x) x$prec, character(1))
-  usinds <- which(varprec == "unsigned byte")
-  for (usind in usinds) {
-    varlist[[usind]]$prec <- "byte"
-    if (is.numeric(varlist[[usind]]$missval))
-      varlist[[usind]]$missval <- min(varlist[[usind]]$missval,
-                                      127)
+
+  badtypes <- c("unsigned byte", "8 byte int")
+  changeto <- c("byte", "double")
+
+  badinds <- which(varprec %in% badtypes)
+  for (i in seq_along(badinds)) {
+    indi <- badinds[i] # index in varprec vector
+    typei <- varprec[indi]
+
+    varlist[[indi]]$prec <- changeto[match(typei, badtypes)]
+
+
+    if (typei == "unsigned byte" &&
+        is.numeric(varlist[[badind]]$missval)) {
+          varlist[[badind]]$missval <- min(varlist[[badind]]$missval, 127)
+    }
+
   }
   varlist
 }
@@ -146,11 +165,11 @@ reassign_bytes <- function(varlist) {
 #'
 #' @param nc ncdf4 object, as returned by \code{ncdf4::nc_open()}
 #' @param dimlist As returne by \code{ncss_dimlist()}
-#' @param reassign_bytes Make "unsigned byte" vars into "byte" vars?
+#' @param reassign_prec Force data type into ones \code{ncdf4} can handle?
 #'   Currently required to work with ncdf4.
 #'
 #' @export
-ncss_varlist <- function(nc, dimlist, reassign_bytes = TRUE) {
+ncss_varlist <- function(nc, dimlist, reassign_prec = TRUE) {
   varlist <- nc$var
   outlist <- varlist
   for (i in 1:length(outlist)) {
@@ -165,8 +184,8 @@ ncss_varlist <- function(nc, dimlist, reassign_bytes = TRUE) {
     outlist[[vari$name]] <- vari
   }
 
-  if (reassign_bytes) {
-    outlist <- reassign_bytes(outlist)
+  if (reassign_prec) {
+    outlist <- reassign_prec(outlist)
   }
 
   outlist
@@ -186,13 +205,18 @@ dimsize <- function(var, dimlist) {
 
 #' Get a subset of a single netcdf variable
 #'
-#' @param indlist As returne by \code{ncss_indlist()}
+#' Note: \code{collapse_degen} (from \code{ncdf4::ncvar_get}
+#'  is always FALSE here, in order to
+#'  allow subsetting of resulting arrays.
+#'
+#' @param indlist As returned by \code{ncss_indlist()}
+#' @param optimize optimize call to \code{ncdf4::ncvar_get}
 #' @inheritParams ncdf4::ncvar_get
 #'
 #' @export
 ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
-                        signedbyte = TRUE, collapse_degen = TRUE,
-                        raw_datavals = FALSE) {
+                        signedbyte = TRUE,
+                        raw_datavals = FALSE, optimize = TRUE) {
 
   stopifnot(is.character(varid))
 
@@ -201,20 +225,38 @@ ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
   vari <- nc$var[[varid]]
   dimsi <- vari$dim
   dimnamesi <- vapply(dimsi, function(x) x$name, character(1))
+  names(dimsi) <- dimnamesi
 
-  out <-  ncvar_get(nc, varid, start = NA,
-                    count = NA,
+  # Make start and count arguments, adjust indlist accordingly
+  commondims <- intersect(dimnamesi, names(indlist)) # only special if in both inslist and var
+  indlistinds <- match(commondims, names(indlist))
+  vardiminds <- match(commondims, dimnamesi)
+
+  starts <- rep(1L, length(dimnamesi))
+  counts <- rep(-1L, length(dimnamesi))
+
+  if (optimize) {
+    starts[vardiminds] <- vapply(indlist[indlistinds], min,
+                                  integer(1), na.rm = TRUE)
+    counts[vardiminds] <- vapply(indlist[indlistinds],
+                              function(x, ...) max(x, ...) - min(x, ...) + 1L,
+                              integer(1), na.rm = TRUE)
+    indlist[indlistinds] <- purrr::map2(indlist[indlistinds],
+                                        starts[vardiminds],
+                                        function(x, y) x - y + 1L)
+
+  }
+
+  out <-  ncvar_get(nc, varid, start = starts, count = counts,
                     verbose = verbose, signedbyte = signedbyte,
-                    collapse_degen = collapse_degen,
+                    collapse_degen = FALSE,
                     raw_datavals = raw_datavals)
 
-  # Do subsetting in order
-  ssdimnos <- match(names(indlist), dimnamesi)
-  for (i in seq_along(ssdimnos)) {
-    dimno <- ssdimnos[i]
-    if (is.na(dimno)) next
-    tryout <- try(out <- index_array(out, dimno, indlist[[i]]))
-    if (inherits(tryout, "try-error")) browser()
+  # Do subsetting in order--only commondims
+  for (i in seq_along(vardiminds)) {
+    vardimno <- vardiminds[i]
+    inddimno <- indlistinds[i]
+    out <- index_array(out, vardimno, indlist[[inddimno]])
   }
 
   out
@@ -231,14 +273,15 @@ ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
 #' @param keep_open Keep the netcdf open? Defaults to TRUE.
 #'
 #' @export
-nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE) {
+nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
+                      optimize = TRUE) {
 
   indlist <- ncss_indlist(nc, ...)
   dimlist <- ncss_dimlist(nc, indlist)
   varlist <- ncss_varlist(nc, dimlist)
 
   ncss_create_fill(nc, filename = filename, varlist = varlist,
-                   indlist = indlist, keep_open = keep_open)
+                   indlist = indlist, keep_open = keep_open, optimize = optimize)
 
 }
 
@@ -251,12 +294,13 @@ nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE) {
 #' @param indlist as returned by \code{ncss_indlist()}
 #'
 #' @importFrom ncdf4 nc_open nc_close
-ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE) {
+ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE,
+                             optimize = TRUE) {
   newnc <- ncdf4::nc_create(filename, vars = varlist)
   if (!keep_open) on.exit(nc_close(newnc))
   for (var in nc$var) {
     varnamei <- var$name
-    valsi <- ncvar_getss(nc, var$name, indlist = indlist)
+    valsi <- ncvar_getss(nc, var$name, indlist = indlist, optimize = optimize)
     valsi <- val_check(var, valsi)
     ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = valsi)
   }
