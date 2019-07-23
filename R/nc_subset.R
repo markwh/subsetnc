@@ -2,6 +2,19 @@
 #'
 #' Returns a list that can be used with \code{ncdf4::nc_create()}
 
+#' helper function to get ncdim4 object from nc by name
+#'
+#' @param nc a ncdf4 object as returned by \code{ncdf4::nc_open()}
+#' @param dimname Name of ncdim4 object from \code{nc$dim}
+#'
+#' @export
+getdim <- function(nc, dimname) {
+  dimnames <- vapply(nc$dim, function(x) x$name, character(1))
+  dimind <- match(dimname, dimnames, nomatch = NA)
+  if (is.na(dimind)) stop(sprintf("dim %s not found", dimname))
+  out <- nc$dim[[dimind]]
+  out
+}
 
 #' Helper function to recursively get names from an expression
 getExprNames <- function(expr) {
@@ -34,7 +47,7 @@ index_array <- function(x, dim, value, drop = FALSE) {
 
 #' Return vector of indices (not dimension values)
 #'
-#' @param nc a ncdf4 object as returned by `ncdf4::nc_open()`
+#' @param nc a ncdf4 object as returned by \code{ncdf4::nc_open()}
 #' @param ... Logical expressions involving variables in nc
 #'
 #' @importFrom ncdf4 ncvar_get
@@ -45,30 +58,38 @@ ncss_indlist <- function(nc, ...) {
   outlist <- list()
 
   for (i in 1:length(ssexprs)) {
-
+    # Expression may contain var names and dim names. Need to
+    # potentially put both into data mask.
     ssexpri <- ssexprs[[i]]
 
-    namesi <- unlist(getExprNames(ssexprs[[i]]))
-    namesi <- intersect(namesi, names(nc$var))
-    dimsi <- lapply(namesi, function(x) nc$var[[x]]$dim)
+    # all names (symbols) from current expression
+    names0 <- unlist(getExprNames(ssexprs[[i]]))
+    varnamesi <- intersect(names0, names(nc$var)) # just var names
+    dimnamesi <- intersect(names0, names(nc$dim)) # just dim names
 
-    dimlensi <- vapply(dimsi, length, integer(1))
-    if (max(dimlensi) > 1) stop("All subsetting variables must be 1-dimensional")
+    # ncdim4, dimnames corresponding to var names
+    vardimsi <- lapply(varnamesi, function(x) nc$var[[x]]$dim)
+    vardimnamesi <- vapply(vardimsi, function(x) x[[1]]$name, character(1))
 
-    dimnamesi <- vapply(dimsi, function(x) x[[1]][["name"]], character(1))
-    if (length(unique(dimnamesi)) > 1)
+    # Checks on comparability between supplied variables, dims
+    dimlensi <- vapply(vardimsi, length, integer(1))
+    if (length(dimlensi) && (max(dimlensi) > 1))
+      stop("All subsetting variables must be 1-dimensional")
+    alldimnamesi <- unique(c(vardimnamesi, dimnamesi))
+    if (length(alldimnamesi) > 1)
       stop("All subsetting variables must have same dimension.")
 
 
     # build data mask
-    dfi_list <- lapply(namesi, function(x) as.vector(ncvar_get(nc, x)))
-    dfi <- setNames(as.data.frame(dfi_list), namesi)
+    dfi_varlist <- lapply(varnamesi, function(x) as.vector(ncvar_get(nc, x)))
+    dfi_dimlist <- list(getdim(nc, alldimnamesi)$vals)
+    dfi <- setNames(as.data.frame(c(dfi_varlist, dfi_dimlist)),
+                    c(varnamesi, alldimnamesi))
 
     indsi <- which(rlang::eval_tidy(ssexpri, dfi))
 
-
-    outlist[[dimnamesi]] <- if (is.null(outlist[[dimnamesi]])) indsi else {
-      intersect(indsi, outlist[[dimnamesi]])
+    outlist[[alldimnamesi]] <- if (is.null(outlist[[alldimnamesi]])) indsi else {
+      intersect(indsi, outlist[[alldimnamesi]])
     }
 
   }

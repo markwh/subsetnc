@@ -7,7 +7,7 @@
 ncss_indlist(nc, ...)
 }
 \arguments{
-\item{nc}{a ncdf4 object as returned by `ncdf4::nc_open()`}
+\item{nc}{a ncdf4 object as returned by \code{ncdf4::nc_open()}}
 
 \item{...}{Logical expressions involving variables in nc}
 }

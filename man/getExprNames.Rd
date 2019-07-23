@@ -2,11 +2,10 @@
 % Please edit documentation in R/nc_subset.R
 \name{getExprNames}
 \alias{getExprNames}
-\title{Function to subset and write netcdf v4 files, including ones that have groups.}
+\title{Helper function to recursively get names from an expression}
 \usage{
 getExprNames(expr)
 }
 \description{
-Returns a list that can be used with \code{ncdf4::nc_create()}
 Helper function to recursively get names from an expression
 }
