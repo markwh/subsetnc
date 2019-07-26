@@ -14,8 +14,6 @@ getdim <- function(nc, dimname) {
   tryisna <- try(is.na(dimind))
   isna <- is.na(dimind)
   msg <- sprintf("dim %s not found", dimname)
-  if (!length(isna)) browser()
-  if (!length(msg)) browser()
   if (isna) stop(msg)
   out <- nc$dim[[dimind]]
   out
@@ -172,6 +170,8 @@ reassign_prec <- function(varlist) {
 ncss_varlist <- function(nc, dimlist, reassign_prec = TRUE) {
   varlist <- nc$var
   outlist <- varlist
+
+
   for (i in 1:length(outlist)) {
     vari <- varlist[[i]]
     vari$size <- dimsize(vari, dimlist)
@@ -182,6 +182,15 @@ ncss_varlist <- function(nc, dimlist, reassign_prec = TRUE) {
     vari$varsize <- vari$size # unclear why nc object contains redundant info
 
     outlist[[vari$name]] <- vari
+  }
+
+  # Create new variables for original dimension values
+  for (i in seq_along(dimlist)) {
+    dimnamei <- dimlist[[i]]$name
+    varnamei <- paste0(dimnamei, "__")
+    newvari <- ncdf4::ncvar_def(varnamei, units = "1",
+                                dim = dimlist[[i]], prec = "integer")
+    outlist[[varnamei]] <- newvari
   }
 
   if (reassign_prec) {
@@ -266,6 +275,8 @@ ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
 #'
 #' Creates (and writes) a subset of a ncdf4 object using dplyr-like expressions
 #'
+#' The new netcdf is a subset of the original, and also includes new 1-D
+#'  variables containing the original dimensions' values.
 #'
 #' @param nc a ncdf4 object, as returned by \code{ncdf4::nc_open()}
 #' @param ... \code{dplyr::filter}-like expressions. See details.
@@ -289,6 +300,9 @@ nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
 #'
 #' Used internally by \code{nc_subset()}
 #'
+#' The new netcdf is a subset of the original, and also includes new 1-D
+#'  variables containing the original dimensions' values.
+#'
 #' @inheritParams nc_subset
 #' @param varlist as returned by \code{ncss_varlist()}
 #' @param indlist as returned by \code{ncss_indlist()}
@@ -296,14 +310,27 @@ nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
 #' @importFrom ncdf4 nc_open nc_close
 ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE,
                              optimize = TRUE) {
+
   newnc <- ncdf4::nc_create(filename, vars = varlist)
   if (!keep_open) on.exit(nc_close(newnc))
+
+  # Fill with subset variables' values
   for (var in nc$var) {
     varnamei <- var$name
     valsi <- ncvar_getss(nc, var$name, indlist = indlist, optimize = optimize)
     valsi <- val_check(var, valsi)
     ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = valsi)
   }
+
+  # Fill new variables for original dimension values
+  for (i in seq_along(indlist)) {
+    dimnamei <- names(indlist)[i]
+    varnamei <- paste0(dimnamei, "__")
+    ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = indlist[[i]])
+  }
+
+
+
   # Close and reopen to take out of write mode.
   nc_close(newnc)
   newnc <- nc_open(filename)

@@ -1,7 +1,7 @@
 Package: subsetnc
 Type: Package
 Title: Tidily Subset NetCDF Data
-Version: 0.0.2
+Version: 0.0.2.9001
 Authors@R: person("Mark", "Hagemann", email = "mark.hagemann@gmail.com", 
     role = c("aut", "cre"))
 Description: A little package to add missing subset-writing functionality 

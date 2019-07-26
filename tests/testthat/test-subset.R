@@ -31,6 +31,10 @@ test_that("subsetting creates a ncdf4 object", {
                     filename = foofile)
   ncdf4::nc_close(foonc)
   expect_is(ssnc, "ncdf4")
+
+  expect_gt(length(ssnc$var), length(foonc$var))
+  expect_false(is.null(ssnc$var[["nodes/nodes__"]]))
+
   expect_lt(file.size(foofile), file.size(testfile))
 })
 
