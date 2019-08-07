@@ -21,3 +21,7 @@ ncss_create_fill(nc, filename, varlist, indlist, keep_open = TRUE,
 \description{
 Used internally by \code{nc_subset()}
 }
+\details{
+The new netcdf is a subset of the original, and also includes new 1-D
+ variables containing the original dimensions' values.
+}

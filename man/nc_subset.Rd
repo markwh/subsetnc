@@ -19,3 +19,7 @@ nc_subset(nc, ..., filename = tempfile(), keep_open = TRUE,
 \description{
 Creates (and writes) a subset of a ncdf4 object using dplyr-like expressions
 }
+\details{
+The new netcdf is a subset of the original, and also includes new 1-D
+ variables containing the original dimensions' values.
+}
