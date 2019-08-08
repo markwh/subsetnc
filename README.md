@@ -15,7 +15,7 @@ A little package for making new netcdfs as subsets of existing netcdfs
 [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) is a commonly
 used format for storing scientific data. Several R packages already
 exist for reading, writing, and manipulating netcdf data, including
-[ncdf4]() and [tidyn](https://github.com/ropensci/tidync), and they work
+[ncdf4]() and [tidync](https://github.com/ropensci/tidync), and they work
 great\! Unfortunately, none of them facilitate simple subsetting of
 netcdf files to produce new netcdf files. This is the job of
 **subsetnc**.
@@ -77,7 +77,7 @@ measurements of river height, width, slope, and other variables.
 
 Because the example dataset contains
 [groups](https://www.unidata.ucar.edu/software/netcdf/docs/group__groups.html),
-its variables and dimensions must be accessed in the `<group>/<variable`
+its variables and dimensions must be accessed in the `<group>/<variable>`
 format. Because of the `/`, these variables and dimensions must be
 enclosed in backticks (\`) when subsetting.
 
