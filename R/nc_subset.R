@@ -49,9 +49,9 @@ ncss_indlist <- function(nc, ...) {
 
     outlist[[alldimnamesi]] <- if (is.null(outlist[[alldimnamesi]])) indsi else {
       intersect(indsi, outlist[[alldimnamesi]])
+    }
 
     stopifnot(inherits(outlist[[alldimnamesi]], "integer"))
-    }
 
   }
 
