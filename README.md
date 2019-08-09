@@ -1,5 +1,16 @@
 
-# Subset netcdf data using R
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# subsetnc
+
+<!-- badges: start -->
+
+[![Travis build
+status](https://travis-ci.org/markwh/subsetnc.svg?branch=master)](https://travis-ci.org/markwh/subsetnc)
+
+[![Codecov test
+coverage](https://codecov.io/gh/markwh/subsetnc/branch/master/graph/badge.svg)](https://codecov.io/gh/markwh/subsetnc?branch=master)
+<!-- badges: end -->
 
 A little package for making new netcdfs as subsets of existing netcdfs
 
