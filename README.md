@@ -120,7 +120,7 @@ mapdf_orig <- paste0("nodes/", plotvars) %>%
 mapdf_orig %>% 
   ggplot(aes(x = longitude, y = latitude, color = height)) + 
   geom_point(size = 4) +
-  coord_map()
+  coord_equal()
 ```
 
 ![](man/figures/README-unnamed-chunk-4-1.png)<!-- -->
@@ -140,7 +140,7 @@ mapdf_dimss <- paste0("nodes/", plotvars) %>%
 mapdf_dimss %>% 
   ggplot(aes(x = longitude, y = latitude, color = height)) + 
   geom_point(size = 4) +
-  coord_map()
+  coord_equal()
 ```
 
 ![](man/figures/README-unnamed-chunk-5-1.png)<!-- -->
@@ -159,7 +159,7 @@ mapdf_varss <- paste0("nodes/", plotvars) %>%
 mapdf_varss %>% 
   ggplot(aes(x = longitude, y = latitude, color = height)) + 
   geom_point(size = 4) +
-  coord_map()
+  coord_equal()
 ```
 
 ![](man/figures/README-unnamed-chunk-6-1.png)<!-- -->
@@ -181,7 +181,7 @@ mapdf_vardimss <- paste0("nodes/", plotvars) %>%
 mapdf_vardimss %>% 
   ggplot(aes(x = longitude, y = latitude, color = height)) + 
   geom_point(size = 4) +
-  coord_map()
+  coord_equal()
 ```
 
 ![](man/figures/README-unnamed-chunk-7-1.png)<!-- -->
