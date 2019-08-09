@@ -6,25 +6,34 @@ A little package for making new netcdfs as subsets of existing netcdfs
 ## TODO
 
   - Add examples to function documentation
-  - write a vignette
-  - finish readme
   - add travis, covr, badges
 
 ## Motivation
 
 [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) is a commonly
-used format for storing scientific data. Several R packages already
-exist for reading, writing, and manipulating netcdf data, including
-[ncdf4]() and [tidync](https://github.com/ropensci/tidync), and they work
-great\! Unfortunately, none of them facilitate simple subsetting of
-netcdf files to produce new netcdf files. This is the job of
-**subsetnc**.
+used format for storing scientific data. Several useful R packages
+already exist for reading, writing, and manipulating netcdf data,
+including [ncdf4]() and [tidync](https://github.com/ropensci/tidync).
+Unfortunately, none of them facilitate simple subsetting of netcdf files
+to produce new netcdf files. This is the job of **subsetnc**.
+
+**subsetnc** features:
 
   - familiar dplyr-style filtering using both variables (1-D only) and
     dimensions
-  - support for groups (not currently available in tidync, for example)
+  - support for
+    [groups](https://www.unidata.ucar.edu/software/netcdf/docs/group__groups.html)
   - somewhat-optimized variable access (though likely room for
     improvement)
+
+Possible use cases include:
+
+  - making example or unit-test netcdfs from larger files (this was the
+    impetus for making the package)
+  - extracting only the desired sections of a very large dataset before
+    transferring (e.g. from remote storage to local)
+  - sharing just the important parts of a large dataset with colleagues,
+    etc.
 
 ## Installation
 
@@ -77,9 +86,9 @@ measurements of river height, width, slope, and other variables.
 
 Because the example dataset contains
 [groups](https://www.unidata.ucar.edu/software/netcdf/docs/group__groups.html),
-its variables and dimensions must be accessed in the `<group>/<variable>`
-format. Because of the `/`, these variables and dimensions must be
-enclosed in backticks (\`) when subsetting.
+its variables and dimensions must be accessed in the
+`<group>/<variable>` format. Because of the `/`, these variables and
+dimensions must be enclosed in backticks (\`) when subsetting.
 
 ``` r
 library(ggplot2)
@@ -103,7 +112,7 @@ mapdf_orig %>%
   coord_map()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-4-1.png)<!-- -->
 
 ### Subset by dimension:
 
@@ -123,7 +132,7 @@ mapdf_dimss %>%
   coord_map()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-5-1.png)<!-- -->
 
 ### Subset by variable:
 
@@ -142,7 +151,7 @@ mapdf_varss %>%
   coord_map()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-6-1.png)<!-- -->
 
 ### Combine subset expressions (variable and dimension):
 
@@ -164,4 +173,4 @@ mapdf_vardimss %>%
   coord_map()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-7-1.png)<!-- -->

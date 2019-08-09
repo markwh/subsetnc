@@ -6,6 +6,15 @@
 \usage{
 index_array(x, dim, value, drop = FALSE)
 }
+\arguments{
+\item{x}{an array}
+
+\item{dim}{dimension along which to index}
+
+\item{value}{values (vector) of indices}
+
+\item{drop}{passed to \code{[}}
+}
 \description{
 Copied from https://stackoverflow.com/a/14502298.
 }

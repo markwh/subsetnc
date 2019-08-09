@@ -6,6 +6,9 @@
 \usage{
 getExprNames(expr)
 }
+\arguments{
+\item{expr}{an expressino from which to retrieve name objects}
+}
 \description{
 Helper function to recursively get names from an expression
 }

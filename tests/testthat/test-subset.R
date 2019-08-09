@@ -55,23 +55,25 @@ test_that("subsetting dimensions creates a ncdf4 object", {
   expect_lt(file.size(foofile), file.size(testfile))
 })
 
-test_that("optimizing ncvar_get call returns same as non-optimized", {
-  testfile <- "rt.nc"
-  foonc <- ncdf4::nc_open(testfile)
 
-  ssinds1 <- ncss_indlist(foonc,
-                     `nodes/node_id` < median(`nodes/node_id`,
-                                              na.rm = TRUE),
-                     `reaches/reaches` == 1)
-  ssvals1 <- lapply(names(foonc$var), ncvar_getss,
-                    nc = foonc,
-                    indlist = ssinds1, optimize = FALSE)
-  ssvals2 <- lapply(names(foonc$var), ncvar_getss,
-                    nc = foonc,
-                    indlist = ssinds1, optimize = TRUE)
-
-  expect_identical(ssvals1, ssvals2)
-})
+## The following was removed since optimization toggle feels unnecessary.
+# test_that("optimizing ncvar_get call returns same as non-optimized", {
+#   testfile <- "rt.nc"
+#   foonc <- ncdf4::nc_open(testfile)
+#
+#   ssinds1 <- ncss_indlist(foonc,
+#                      `nodes/node_id` < median(`nodes/node_id`,
+#                                               na.rm = TRUE),
+#                      `reaches/reaches` == 1)
+#   ssvals1 <- lapply(names(foonc$var), ncvar_getss,
+#                     nc = foonc,
+#                     indlist = ssinds1, optimize = FALSE)
+#   ssvals2 <- lapply(names(foonc$var), ncvar_getss,
+#                     nc = foonc,
+#                     indlist = ssinds1, optimize = TRUE)
+#
+#   expect_identical(ssvals1, ssvals2)
+# })
 
 
 test_that("problematic prec types are reassigned with message", {

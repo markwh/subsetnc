@@ -6,6 +6,11 @@
 \usage{
 ssdim(ncdim, keepinds)
 }
+\arguments{
+\item{ncdim}{a ncdim4 object}
+
+\item{keepinds}{indices to keep}
+}
 \description{
 Helper function to subset a ncdim4 object
 }

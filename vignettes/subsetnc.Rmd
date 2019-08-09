@@ -1,26 +1,21 @@
 ---
-output: github_document
-editor_options: 
-  chunk_output_type: console
+title: "subsetnc"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{subsetnc}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include=FALSE}
 library(knitr)
-opts_chunk$set(
-  echo = TRUE,
-  fig.path = "man/figures/README-"
-  )
+opts_chunk$set(echo = TRUE)
 ```
 
 
 # Subset netcdf data using R
 
 A little package for making new netcdfs as subsets of existing netcdfs
-
-## TODO
-
-- Add examples to function documentation
-- add travis, covr, badges
 
 ## Motivation
 
@@ -160,5 +155,4 @@ mapdf_vardimss %>%
   coord_map()
 
 ```
-
 

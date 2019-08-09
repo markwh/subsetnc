@@ -9,6 +9,7 @@
 #' @param ... Logical expressions involving variables in nc
 #'
 #' @importFrom ncdf4 ncvar_get
+#' @importFrom stats setNames
 #' @export
 ncss_indlist <- function(nc, ...) {
   ssexprs <- rlang::enexprs(...)
@@ -81,40 +82,6 @@ ncss_dimlist <- function(nc, indlist) {
   out
 }
 
-
-#' Helper function to workaround ncdf4's prec limitations
-reassign_prec <- function(varlist) {
-  varprec <- vapply(varlist, function(x) x$prec, character(1))
-  varnames <- vapply(varlist, function(x) x$name, character(1))
-
-  badtypes <- c("unsigned byte", "8 byte int")
-  changeto <- c("byte", "double")
-
-  badinds <- which(varprec %in% badtypes)
-  for (i in badinds) {
-    preci <- varprec[i]
-    namei <- varnames[i]
-    newpreci <- changeto[match(preci, badtypes)]
-
-    message(sprintf("Changing variable %s with prec %s to prec %s.\n",
-                    namei, preci, newpreci))
-  }
-
-  for (i in seq_along(badinds)) {
-    indi <- badinds[i] # index in varprec vector
-    typei <- varprec[indi]
-
-    varlist[[indi]]$prec <- changeto[match(typei, badtypes)]
-
-
-    if (typei == "unsigned byte" &&
-        is.numeric(varlist[[i]]$missval)) {
-          varlist[[i]]$missval <- min(varlist[[i]]$missval, 127)
-    }
-
-  }
-  varlist
-}
 
 
 #' Create a list of ncvar4 objects from a subset list
@@ -242,15 +209,14 @@ ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
 #' @param keep_open Keep the netcdf open? Defaults to TRUE.
 #'
 #' @export
-nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
-                      optimize = TRUE) {
+nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE) {
 
   indlist <- ncss_indlist(nc, ...)
   dimlist <- ncss_dimlist(nc, indlist)
   varlist <- ncss_varlist(nc, dimlist)
 
   ncss_create_fill(nc, filename = filename, varlist = varlist,
-                   indlist = indlist, keep_open = keep_open, optimize = optimize)
+                   indlist = indlist, keep_open = keep_open, optimize = TRUE)
 
 }
 
@@ -264,6 +230,8 @@ nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
 #' @inheritParams nc_subset
 #' @param varlist as returned by \code{ncss_varlist()}
 #' @param indlist as returned by \code{ncss_indlist()}
+#' @param optimize use \code{start} and \code{count} arguments to optimize
+#'   \code{ncvar_get()} call?
 #'
 #' @importFrom ncdf4 nc_open nc_close
 ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE,
