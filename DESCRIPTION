@@ -14,7 +14,8 @@ Suggests:
     knitr,
     rmarkdown,
     ggplot2,
-    dplyr
+    dplyr,
+    covr
 Imports: 
     ncdf4,
     rlang,

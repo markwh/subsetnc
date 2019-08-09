@@ -4,6 +4,9 @@ editor_options:
   chunk_output_type: console
 ---
 
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+
 ```{r, include=FALSE}
 library(knitr)
 opts_chunk$set(
@@ -13,7 +16,14 @@ opts_chunk$set(
 ```
 
 
-# Subset netcdf data using R
+# subsetnc
+
+<!-- badges: start -->
+[![Travis build status](https://travis-ci.org/markwh/subsetnc.svg?branch=master)](https://travis-ci.org/markwh/subsetnc)
+
+
+[![Codecov test coverage](https://codecov.io/gh/markwh/subsetnc/branch/master/graph/badge.svg)](https://codecov.io/gh/markwh/subsetnc?branch=master)
+<!-- badges: end -->
 
 A little package for making new netcdfs as subsets of existing netcdfs
 
