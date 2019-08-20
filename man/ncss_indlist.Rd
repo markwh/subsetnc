@@ -2,7 +2,7 @@
 % Please edit documentation in R/nc_subset.R
 \name{ncss_indlist}
 \alias{ncss_indlist}
-\title{Return vector of indices (not dimension values)}
+\title{Function to subset and write netcdf v4 files, including ones that have groups.}
 \usage{
 ncss_indlist(nc, ...)
 }
@@ -12,5 +12,6 @@ ncss_indlist(nc, ...)
 \item{...}{Logical expressions involving variables in nc}
 }
 \description{
+Returns a list that can be used with \code{ncdf4::nc_create()}
 Return vector of indices (not dimension values)
 }

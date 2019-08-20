@@ -4,8 +4,7 @@
 \alias{nc_subset}
 \title{Subset a netcdf}
 \usage{
-nc_subset(nc, ..., filename = tempfile(), keep_open = TRUE,
-  optimize = TRUE)
+nc_subset(nc, ..., filename = tempfile(), keep_open = TRUE)
 }
 \arguments{
 \item{nc}{a ncdf4 object, as returned by \code{ncdf4::nc_open()}}
@@ -18,4 +17,8 @@ nc_subset(nc, ..., filename = tempfile(), keep_open = TRUE,
 }
 \description{
 Creates (and writes) a subset of a ncdf4 object using dplyr-like expressions
+}
+\details{
+The new netcdf is a subset of the original, and also includes new 1-D
+ variables containing the original dimensions' values.
 }

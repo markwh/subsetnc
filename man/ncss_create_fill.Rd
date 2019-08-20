@@ -17,7 +17,14 @@ ncss_create_fill(nc, filename, varlist, indlist, keep_open = TRUE,
 \item{indlist}{as returned by \code{ncss_indlist()}}
 
 \item{keep_open}{Keep the netcdf open? Defaults to TRUE.}
+
+\item{optimize}{use \code{start} and \code{count} arguments to optimize
+\code{ncvar_get()} call?}
 }
 \description{
 Used internally by \code{nc_subset()}
+}
+\details{
+The new netcdf is a subset of the original, and also includes new 1-D
+ variables containing the original dimensions' values.
 }

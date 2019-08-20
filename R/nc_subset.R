@@ -2,51 +2,6 @@
 #'
 #' Returns a list that can be used with \code{ncdf4::nc_create()}
 
-#' helper function to get ncdim4 object from nc by name
-#'
-#' @param nc a ncdf4 object as returned by \code{ncdf4::nc_open()}
-#' @param dimname Name of ncdim4 object from \code{nc$dim}
-#'
-#' @export
-getdim <- function(nc, dimname) {
-  dimnames <- vapply(nc$dim, function(x) x$name, character(1))
-  dimind <- match(dimname, dimnames, nomatch = NA)
-  tryisna <- try(is.na(dimind))
-  isna <- is.na(dimind)
-  msg <- sprintf("dim %s not found", dimname)
-  if (isna) stop(msg)
-  out <- nc$dim[[dimind]]
-  out
-}
-
-#' Helper function to recursively get names from an expression
-getExprNames <- function(expr) {
-  if (rlang::is_symbol(expr)) {
-    return(rlang::as_string(expr))
-  } else if (rlang::is_call(expr)) {
-    return(lapply(expr[-1], getExprNames))
-  }
-}
-
-#' Index an arbitrarily-sized array, from Hadley
-#'
-#' Copied from https://stackoverflow.com/a/14502298.
-index_array <- function(x, dim, value, drop = FALSE) {
-  # Create list representing arguments supplied to [
-  # bquote() creates an object corresponding to a missing argument
-  indices <- rep(list(bquote()), length(dim(x)))
-  indices[[dim]] <- value
-
-  # Generate the call to [
-  call <- as.call(c(
-    list(as.name("["), quote(x)),
-    indices,
-    list(drop = drop)))
-
-  # Finally, evaluate it
-  eval(call)
-}
-
 
 #' Return vector of indices (not dimension values)
 #'
@@ -55,6 +10,7 @@ index_array <- function(x, dim, value, drop = FALSE) {
 #' @param env passed to \code{rlang::eval_tidy()}
 #'
 #' @importFrom ncdf4 ncvar_get
+#' @importFrom stats setNames
 #' @export
 ncss_indlist <- function(nc, ..., env = parent.frame()) {
   ssexprs <- rlang::enexprs(...)
@@ -95,9 +51,9 @@ ncss_indlist <- function(nc, ..., env = parent.frame()) {
 
     outlist[[alldimnamesi]] <- if (is.null(outlist[[alldimnamesi]])) indsi else {
       intersect(indsi, outlist[[alldimnamesi]])
+    }
 
     stopifnot(inherits(outlist[[alldimnamesi]], "integer"))
-    }
 
   }
 
@@ -127,37 +83,6 @@ ncss_dimlist <- function(nc, indlist) {
   out
 }
 
-#' Helper function to subset a ncdim4 object
-ssdim <- function(ncdim, keepinds) {
-  ncdim$len <- length(keepinds)
-  ncdim$vals <- ncdim$vals[keepinds]
-  ncdim
-}
-
-
-#' Helper function to workaround ncdf4's prec limitations
-reassign_prec <- function(varlist) {
-  varprec <- vapply(varlist, function(x) x$prec, character(1))
-
-  badtypes <- c("unsigned byte", "8 byte int")
-  changeto <- c("byte", "double")
-
-  badinds <- which(varprec %in% badtypes)
-  for (i in seq_along(badinds)) {
-    indi <- badinds[i] # index in varprec vector
-    typei <- varprec[indi]
-
-    varlist[[indi]]$prec <- changeto[match(typei, badtypes)]
-
-
-    if (typei == "unsigned byte" &&
-        is.numeric(varlist[[badind]]$missval)) {
-          varlist[[badind]]$missval <- min(varlist[[badind]]$missval, 127)
-    }
-
-  }
-  varlist
-}
 
 
 #' Create a list of ncvar4 objects from a subset list
@@ -285,15 +210,14 @@ ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
 #' @param keep_open Keep the netcdf open? Defaults to TRUE.
 #'
 #' @export
-nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
-                      optimize = TRUE) {
+nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE) {
 
   indlist <- ncss_indlist(nc, ..., env = parent.frame())
   dimlist <- ncss_dimlist(nc, indlist)
   varlist <- ncss_varlist(nc, dimlist)
 
   ncss_create_fill(nc, filename = filename, varlist = varlist,
-                   indlist = indlist, keep_open = keep_open, optimize = optimize)
+                   indlist = indlist, keep_open = keep_open, optimize = TRUE)
 
 }
 
@@ -307,6 +231,8 @@ nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
 #' @inheritParams nc_subset
 #' @param varlist as returned by \code{ncss_varlist()}
 #' @param indlist as returned by \code{ncss_indlist()}
+#' @param optimize use \code{start} and \code{count} arguments to optimize
+#'   \code{ncvar_get()} call?
 #'
 #' @importFrom ncdf4 nc_open nc_close
 ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE,
@@ -350,7 +276,7 @@ val_check <- function(ncvar, vals) {
       warning("imposing a missing value of NA on non-finite values.")
       missval <- NA
     }
-    vals[!is.finite(vals)] <- ncvar$missval
+    vals[!is.finite(vals)] <- missval
   }
   vals
 }

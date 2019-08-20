@@ -1,0 +1,158 @@
+---
+title: "subsetnc"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{subsetnc}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include=FALSE}
+library(knitr)
+opts_chunk$set(echo = TRUE)
+```
+
+
+# Subset netcdf data using R
+
+A little package for making new netcdfs as subsets of existing netcdfs
+
+## Motivation
+
+[NetCDF](https://www.unidata.ucar.edu/software/netcdf/) is a commonly used format for storing scientific data. Several useful R packages already exist for reading, writing, and manipulating netcdf data, including [ncdf4]() and [tidync](https://github.com/ropensci/tidync). Unfortunately, none of them facilitate simple subsetting of netcdf files to produce new netcdf files. This is the job of **subsetnc**. 
+
+
+**subsetnc** features:
+
+- familiar dplyr-style filtering using both variables (1-D only) and dimensions
+- support for [groups](https://www.unidata.ucar.edu/software/netcdf/docs/group__groups.html)
+- somewhat-optimized variable access (though likely room for improvement)
+
+Possible use cases include:
+
+- making example or unit-test netcdfs from larger files (this was the impetus for making the package)
+- extracting only the desired sections of a very large dataset before transferring (e.g. from remote storage to local)
+- sharing just the important parts of a large dataset with colleagues, etc. 
+
+
+## Installation
+
+```{r, eval = FALSE}
+devtools::install_github("markwh/subsetnc")
+```
+
+## Basic usage
+
+A ncdf4 object can be subset by either its dimension(s) or 1-dimensional variables using logical statements similar to `dplyr::filter()`. Any number of substting statemenst can be combined, for example:
+
+```{r, eval = FALSE}
+nc <- ncdf4::nc_open(ncfile)
+
+ssnc <- nc %>% 
+  nc_subset(var1 %in% 1:5,
+            var2 > var1 + 7,
+            var3 %in% (median(var3) + (-3:3)),
+            dim1 < 100,
+            filename = "newnc.nc")
+```
+
+
+The output of `nc_subset()` is an ncdf4 object, which points to a newly created on-disk netcdf file, specified by the `filename` argument. If `filename` is omitted, the new netcdf is written to a `tempfile()` that will be deleted upon R session exit. The result can therefore be used with any of the `ncdf4::` functions. 
+
+
+### Added variables
+
+The netcdf produced by `nc_subset()` contains additional variables corresponding to the dimension values in the original netcdf. Because netcdf dimensions are often required to be valued `1:length(dim)` (unless they are specified with units, which in my experience is rare), these new variables are required in order to keep track of dimension indices--to facilitate joining to other datasets, for example. These variables have names identical to their corresponding dimensions, with two underscores appended to the end. For example, the variable `group1/dim1__` is created to keep track of the values of the *dimension* `group1/dim1` from the original netcdf. 
+
+## Examples
+
+An example netcdf dataset is included, showing node- and reach-level simulated [SWOT](https://swot.jpl.nasa.gov/) data from the Sacramento River in California. This dataset includes node- and reach-level measurements of river height, width, slope, and other variables. 
+
+Because the example dataset contains [groups](https://www.unidata.ucar.edu/software/netcdf/docs/group__groups.html), its variables and dimensions must be accessed in the `<group>/<variable>` format. Because of the `/`, these variables and dimensions must be enclosed in backticks (\`) when subsetting. 
+
+```{r}
+library(ggplot2)
+library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
+library(ncdf4)
+library(subsetnc)
+
+ncfile <- system.file("extdata", "sacriver.nc", package = "subsetnc", mustWork = TRUE)
+orignc <- nc_open(ncfile)
+
+plotvars <- c("latitude", "longitude", "height")
+mapdf_orig <- paste0("nodes/", plotvars) %>% 
+  lapply(ncvar_get, nc = orignc) %>% 
+  lapply(as.vector) %>% 
+  setNames(plotvars) %>% 
+  as.data.frame()
+
+mapdf_orig %>% 
+  ggplot(aes(x = longitude, y = latitude, color = height)) + 
+  geom_point(size = 4) +
+  coord_equal()
+```
+
+
+### Subset by dimension:
+
+```{r}
+# Keep every 3rd node along the `nodes/nodes` dimension
+ssnc_dim <- nc_subset(orignc, `nodes/nodes` %% 3 == 0)
+
+mapdf_dimss <- paste0("nodes/", plotvars) %>% 
+  lapply(ncvar_get, nc = ssnc_dim) %>% 
+  lapply(as.vector) %>% 
+  setNames(plotvars) %>% 
+  as.data.frame()
+
+mapdf_dimss %>% 
+  ggplot(aes(x = longitude, y = latitude, color = height)) + 
+  geom_point(size = 4) +
+  coord_equal()
+
+```
+
+
+### Subset by variable: 
+
+```{r}
+
+ssnc_var <- nc_subset(orignc, `nodes/width` < median(`nodes/width`))
+
+mapdf_varss <- paste0("nodes/", plotvars) %>% 
+  lapply(ncvar_get, nc = ssnc_var) %>% 
+  lapply(as.vector) %>% 
+  setNames(plotvars) %>% 
+  as.data.frame()
+
+mapdf_varss %>% 
+  ggplot(aes(x = longitude, y = latitude, color = height)) + 
+  geom_point(size = 4) +
+  coord_equal()
+
+```
+
+
+### Combine subset expressions (variable and dimension): 
+
+
+```{r}
+
+ssnc_vardim <- nc_subset(orignc, 
+                         `nodes/width` < median(`nodes/width`),
+                         `nodes/height` > 8,
+                         `nodes/nodes` %% 3 == 0)
+
+mapdf_vardimss <- paste0("nodes/", plotvars) %>% 
+  lapply(ncvar_get, nc = ssnc_vardim) %>% 
+  lapply(as.vector) %>% 
+  setNames(plotvars) %>% 
+  as.data.frame()
+
+mapdf_vardimss %>% 
+  ggplot(aes(x = longitude, y = latitude, color = height)) + 
+  geom_point(size = 4) +
+  coord_equal()
+
+```
+
