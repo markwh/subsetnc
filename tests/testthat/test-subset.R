@@ -56,3 +56,31 @@ test_that("optimizing ncvar_get call returns same as non-optimized", {
 
   expect_identical(ssvals1, ssvals2)
 })
+
+test_that("scoping of objects works as intended", {
+  foofile1 <- tempfile()
+  foofile2 <- tempfile()
+  testfile <- "rt.nc"
+  foonc <- ncdf4::nc_open(testfile)
+
+  ssnc1 <- nc_subset(foonc,
+                     `nodes/nodes` < 10,
+                     filename = foofile1)
+
+
+  ltval <- 10
+  ssnc2 <- nc_subset(foonc,
+                     `nodes/nodes` < ltval,
+                     filename = foofile2)
+
+  expect_identical(ncvar_get(ssnc1, "nodes/nodes__"),
+                   array(1:9))
+  expect_identical(ncvar_get(ssnc1, "nodes/nodes__"),
+                   ncvar_get(ssnc2, "nodes/nodes__"))
+
+  indlist1 <- ncss_indlist(foonc, `nodes/nodes` < 10)
+  indlist2 <- ncss_indlist(foonc, `nodes/nodes` < ltval)
+
+  expect_identical(indlist1, indlist2)
+
+})

@@ -52,10 +52,11 @@ index_array <- function(x, dim, value, drop = FALSE) {
 #'
 #' @param nc a ncdf4 object as returned by \code{ncdf4::nc_open()}
 #' @param ... Logical expressions involving variables in nc
+#' @param env passed to \code{rlang::eval_tidy()}
 #'
 #' @importFrom ncdf4 ncvar_get
 #' @export
-ncss_indlist <- function(nc, ...) {
+ncss_indlist <- function(nc, ..., env = parent.frame()) {
   ssexprs <- rlang::enexprs(...)
 
   outlist <- list()
@@ -90,7 +91,7 @@ ncss_indlist <- function(nc, ...) {
     dfi <- setNames(as.data.frame(c(dfi_varlist, dfi_dimlist)),
                     c(varnamesi, alldimnamesi))
 
-    indsi <- which(rlang::eval_tidy(ssexpri, dfi))
+    indsi <- which(rlang::eval_tidy(ssexpri, dfi, env = env))
 
     outlist[[alldimnamesi]] <- if (is.null(outlist[[alldimnamesi]])) indsi else {
       intersect(indsi, outlist[[alldimnamesi]])
@@ -287,7 +288,7 @@ ncvar_getss <- function(nc, varid, indlist = NULL, verbose = FALSE,
 nc_subset <- function(nc, ..., filename = tempfile(), keep_open = TRUE,
                       optimize = TRUE) {
 
-  indlist <- ncss_indlist(nc, ...)
+  indlist <- ncss_indlist(nc, ..., env = parent.frame())
   dimlist <- ncss_dimlist(nc, indlist)
   varlist <- ncss_varlist(nc, dimlist)
 
@@ -319,14 +320,18 @@ ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE,
     varnamei <- var$name
     valsi <- ncvar_getss(nc, var$name, indlist = indlist, optimize = optimize)
     valsi <- val_check(var, valsi)
-    ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = valsi)
+    counts <- varlist[[varnamei]]$size
+    ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = valsi,
+                     start = rep(1L, length(counts)),
+                     count = counts)
   }
 
   # Fill new variables for original dimension values
   for (i in seq_along(indlist)) {
     dimnamei <- names(indlist)[i]
     varnamei <- paste0(dimnamei, "__")
-    ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = indlist[[i]])
+    ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = indlist[[i]],
+                     start = 1L, count = length(indlist[[i]]))
   }
 
 
