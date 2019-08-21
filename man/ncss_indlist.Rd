@@ -4,12 +4,14 @@
 \alias{ncss_indlist}
 \title{Function to subset and write netcdf v4 files, including ones that have groups.}
 \usage{
-ncss_indlist(nc, ...)
+ncss_indlist(nc, ..., env = parent.frame())
 }
 \arguments{
 \item{nc}{a ncdf4 object as returned by \code{ncdf4::nc_open()}}
 
 \item{...}{Logical expressions involving variables in nc}
+
+\item{env}{passed to \code{rlang::eval_tidy()}}
 }
 \description{
 Returns a list that can be used with \code{ncdf4::nc_create()}

@@ -246,7 +246,10 @@ ncss_create_fill <- function(nc, filename, varlist, indlist, keep_open = TRUE,
     varnamei <- var$name
     valsi <- ncvar_getss(nc, var$name, indlist = indlist, optimize = optimize)
     valsi <- val_check(var, valsi)
-    counts <- varlist[[varnamei]]$size
+
+    counts <- vapply(varlist[[varnamei]]$dim, function(x) x[["len"]], numeric(1))
+
+    if (is.null(counts)) browser()
     ncdf4::ncvar_put(newnc, varlist[[varnamei]], vals = valsi,
                      start = rep(1L, length(counts)),
                      count = counts)
